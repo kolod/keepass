@@ -1,0 +1,41 @@
+name: Mirror KeePass sources
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only show what would be committed
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Configure git identity
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+
+      - name: Mirror new releases
+        run: python .github/scripts/mirror.py ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Push
+        if: ${{ !inputs.dry_run }}
+        run: git push --follow-tags origin HEAD:${{ github.ref_name }}
